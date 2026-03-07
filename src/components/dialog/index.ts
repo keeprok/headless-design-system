@@ -1,9 +1,3 @@
-export { Button } from "./button";
-export type { ButtonProps } from "./button";
-
-export { Input } from "./input";
-export type { InputProps } from "./input";
-
 export {
   Dialog,
   DialogTrigger,
@@ -13,7 +7,8 @@ export {
   DialogTitle,
   DialogDescription,
   DialogClose,
-} from "./dialog";
+} from "./Dialog";
+
 export type {
   DialogProps,
   DialogTriggerProps,
@@ -23,4 +18,4 @@ export type {
   DialogTitleProps,
   DialogDescriptionProps,
   DialogCloseProps,
-} from "./dialog";
+} from "./Dialog";
