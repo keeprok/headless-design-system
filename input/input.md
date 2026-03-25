@@ -1,148 +1,42 @@
-## Input (TextField)
+# 📝 Headless Input Component 설계 노트
 
-### 목적
+## 1. 컴포넌트의 목적
 
-- 텍스트 입력 필드 제공
-- label/invalid 등 접근성 기반 입력 경험 제공
+비즈니스 로직과 디자인(스타일링)을 철저히 분리하고, 어떠한 폼(Form) 환경이나 플랫폼에서도 재사용 가능한 **'제어권 역전(Inversion of Control)'** 기반의 Headless 텍스트 입력 컴포넌트입니다.
 
-### 책임(하는 것)
+---
 
-- `<input>` 기반 텍스트 입력 제공
-- label 연결(id/for 또는 aria-label) 지원
-- invalid 상태 표현(aria-invalid)
-- (선택) helper/description 연결(aria-describedby)
+## 2. 핵심 아키텍처 및 트러블슈팅
 
-### 비책임(하지 않는 것)
+### A. 내부 상태 제거 (Single Source of Truth)
 
-- 스타일/아이콘/레이아웃 결정
-- 포맷팅/마스킹(전화번호, 날짜 등) 처리
-- 폼 검증 로직(유효성 판단) 자체 제공
-- debounce/search 같은 비즈니스 로직 제공
+- **설계 의도:** 컴포넌트 내부에 `useState`를 두지 않고, 상태 제어권을 100% 부모(소비자)에게 위임했습니다.
+- **성과:** 컴포넌트와 부모 간의 상태 동기화 이슈를 원천 차단했으며, `react-hook-form`, `Formik` 같은 외부 폼 상태 관리 라이브러리와 충돌 없이 완벽하게 호환되는 구조를 달성했습니다.
 
-### 상태 설계
+### B. 이벤트 객체 추상화와 플랫폼 이식성
 
-- 내부 상태 없음(기본)
-- Controlled/Uncontrolled 모두 허용:
-  - value + onChange (Controlled)
-  - defaultValue (Uncontrolled)
+- **설계 의도:** 네이티브 `onChange` 이벤트를 가로채어 `ChangeEvent` 객체 통째가 아닌, 추출된 `value(string)` 값만 부모에게 전달하도록 시그니처를 오버라이드(Override) 했습니다.
+- **성과 (DX 향상):** 소비자는 불필요한 보일러플레이트(`e.target.value`)를 작성할 필요가 없어졌습니다.
+- **트러블슈팅 (타입 충돌 방지):** 네이티브 `onChange`와 커스텀 `onChange`의 시그니처 충돌을 방지하기 위해, `Omit` 유틸리티 타입을 사용하여 네이티브 타입을 안전하게 도려낸 후 병합했습니다.
 
-### Props 초안
+### C. WAI-ARIA 기반 완벽한 웹 접근성
 
-- value?: string
-- defaultValue?: string
-- onChange?: (value: string) => void
-- disabled?: boolean
-- placeholder?: string
-- type?: string (기본값: "text")
-- name?: string
-- id?: string (없으면 내부에서 생성 가능 - 선택)
-- label?: string (선택: 제공 시 label 렌더)
-- ariaLabel?: string (label이 없을 때 대체)
-- invalid?: boolean
-- description?: string (선택)
-- describedById?: string (선택, 외부 확장 포인트)
+- **레이블 연결:** 명시적인 `<label htmlFor>`를 지원하며, 시각적 레이블이 없는 경우 `aria-label`을 통해 스크린 리더 사용자를 배려했습니다.
+- **동적 ID 생성:** React 18의 `useId()` 훅을 사용하여, 한 페이지에 여러 Input이 렌더링되더라도 `id` 충돌이나 SSR 하이드레이션 불일치가 발생하지 않도록 방어했습니다.
+- **설명 텍스트 병합:** `aria-describedby`를 활용하여 내부 `description` 요소와 외부의 에러 메시지(`describedById`)를 스크린 리더가 논리적으로 연결하여 읽을 수 있도록 처리했습니다.
 
-### 접근성 최소 기준
+---
 
-- label이 있으면 input과 연결해야 함
-  - `id` + `<label htmlFor>` 또는 aria-label/aria-labelledby
-- invalid이면 `aria-invalid="true"`
-- description이 있으면 `aria-describedby`로 연결
-- disabled는 `<input disabled>`로 전달
+## 3. 면접 방어용 Q&A
 
-### 사용 예시(기본)
+**Q1. Input 내부에 useState를 두지 않고 외부에서 관리하도록 설계한 이유는 무엇인가요?**
+A. 상태의 **'단일 진실 공급원(Single Source of Truth)'**을 확립하기 위함입니다. Input 내부에 상태를 두면, 부모 상태와 양분되어 동기화 비용이 발생합니다. 상태 제어권을 전적으로 소비자에게 위임함으로써 `react-hook-form` 같은 폼 매니저를 사용할 때 상태 충돌 없이 안전하게 확장할 수 있습니다.
 
-```tsx
-<Input label="Email" placeholder="you@example.com" onChange={(value) => console.log(value)} />
-```
+**Q2. onChange 이벤트에서 네이티브 객체(e) 전체가 아닌 value(string)만 넘겨주도록 추상화한 이유는 무엇인가요?**
+A. **'개발자 경험(DX) 향상'**과 **'플랫폼 이식성(Portability) 확보'**를 위해서입니다. 매번 `e.target.value`를 추출해야 하는 반복 코드를 제거했고, 웹과 React Native 등 플랫폼마다 다른 이벤트 객체 구조의 차이를 컴포넌트 내부에서 흡수하여 밖으로는 오직 string만 노출되도록 설계했습니다.
 
-# 끄적임
+**Q3. 컴포넌트 최상단을 div 대신 Fragment(<>)로 감싼 이유와, htmlFor 연결의 이점은 무엇인가요?**
+A. Fragment를 사용한 이유는 Headless 원칙인 **'레이아웃 제어권의 완전한 위임'** 때문입니다. 내부에서 div로 묶으면 소비자가 flex나 grid 레이아웃을 구성할 때 예측 불가능한 부작용이 생깁니다. 또한, `htmlFor` 연결은 클릭 타깃 영역을 레이블 전체로 확장하여 모바일 환경에서 터치 실수를 방지하는 훌륭한 UX를 제공합니다.
 
-## 고유props
-
-- 네이티브 InputHTMLAttributes를 그대로 쓰되, 두 가지를 오버라이드한다.
-  // 1) onChange: 네이티브 SyntheticEvent 대신 값(string)만 전달
-  // → 소비자가 이벤트 객체 구조에 의존하지 않아도 되고,
-  // React 외 환경(e.g. RN, Preact)으로 포팅할 때도 인터페이스가 유지된다. - 어느정도 알겟지만 모르겠다는 느낌 React 외 환경(e.g. RN, Preact)으로 포팅할 때도 특히여기
-
-- htmlFor?
-- 시각적 레이블이 없는 경우에는 ariaLabel을 사용할 것.?
-- 접근성 원칙: 모든 input에는 반드시 레이블이 있어야 한다. 이거 위는 아는데 접근성원칙?
-  - WCAG 2.1 Success Criterion 1.3.1, 4.1.2 참고.모름
-- aria-describedby ?
-- - 이미 DOM에 존재하는 외부 설명 요소의 id.
-  - description prop과 함께 사용하면 두 id를 공백으로 병합한다.
-  - (WAI-ARIA 명세: aria-describedby는 공백 구분 id 목록을 허용)
-  -
-  - 예: 폼 수준의 에러 summary 박스와 연결할 때 유용.
-  * 설명 필요
-- - SyntheticEvent 대신 값(string)만 전달하는 onChange.
-
-* Headless 컴포넌트는 이벤트 세부 구현을 추상화하고 값의 흐름만 노출한다. 헷갈린다
-
-- // 네이티브 onChange를 위에서 정의한 커스텀 onChange로 완전히 교체한다.
-  // Omit을 사용하지 않으면 타입 충돌로 인해 소비자가 두 시그니처 중 하나만
-  // 사용할 수 없게 되는 문제가 생긴다. 왜지?
-
-## Input 컴포넌트
-
-- ref나 콜백 같은 탈출구(escape hatch)가 필요해진다. 읽고나니 맞지 지만 왜 내부상태없음을 해야되냐고 물으면 한번에 안나올듯
-- 상태 소유권을 소비자에게 넘기면 단일 진실 공급원 여기서 소유권과 공급원이 뭐지 그리고왜 충돌이없지 formik도 뭐지 hook-form은 알지만 왜 충돌이없는지 궁금
-- // description 요소에 부여할 id: 입력 필드 id를 기반으로 파생시켜
-  // 같은 페이지에 여러 Input이 있어도 충돌하지 않도록 한다.어찌한다는건지 궁금
-  id: 1 ,id : 1-description으로 구분한다는건가
-- aria-describedby 안보임
-  - [description ? descriptionId : undefined, describedById]
-    .filter(Boolean)
-    .join(" ") || undefined; 이부분에서 descriptionId 이것만 undefined아닌가
-- 네이티브 ChangeEvent를 가로채 value만 추출한 뒤 소비자 onChange로 전달한다.
-  - 가로채는거 어디있지 안보임 알고있는개념인데 햇갈린다 아는개념으로는 api 사용할때 가로채서 비동기화시키고 하는거였는데 흠... 이것도 헷갈리네 axiosIntstance에서였나
-- // 소비자가 onChange를 넘기지 않은 경우(uncontrolled)에는 아무것도 하지 않는다.
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-  onChange?.(e.target.value);
-  };
-  - 입력(onchange)가없으면 작동하지않는다는의미일까?
-- Fragment를 사용해 불필요한 래퍼 DOM 노드를 생성하지 않는다.?
-- // 레이아웃(label/input/description의 배열 방식)은 소비자의 책임이다.
-  - 여기서 소비자가 디자인시스템사용하는 코더 or 빌더 이야기겠지?
-
-- htmlFor + id 연결: 스크린 리더와 클릭 포커스 이동 모두 지원하는
-  // 가장 견고한 레이블 연결 방식이다. 유명한거같으니 알고싶다 알려줘
-- aria-label ?
-  둘다 존재한다는 예시에서는 그럼 안써야되는건가 쓰게되면 무조건 aria-label 가 우선?
-- invalid 은 기본이 false인거라는뜻 이겠지 그리고
-- 연결된 설명 요소 id를 전달해 스크린 리더가 입력 후 설명을 읽을 수 있게 한다. ??
-- // id를 부여해 aria-describedby의 타깃이 된다.
-  // role을 별도로 지정하지 않아도 aria-describedby 연결만으로
-  // 스크린 리더가 포커스 시 내용을 읽어준다. ??
-
-# Input.tsx 면접예상질문
-
-### 📝 [Input.md 업데이트: Q1 ~ 4 완성본]
-
-Q. Input 컴포넌트 내부에 useState를 두지 않고 외부에서 관리하도록(Headless) 설계한 이유와, 외부 폼 라이브러리 연동 시의 장점은 무엇인가요?
-
-A. "상태의 **'단일 진실 공급원(Single Source of Truth)'**을 확립하기 위함입니다.
-만약 Input 내부에 상태를 두면, 소비자의 부모 상태와 Input 내부 상태가 양분되어 항시 동기화(Sync) 처리를 해야 하는 유지보수 비용이 발생합니다. 저는 이 내부 상태를 과감히 없애고 값의 주도권을 전적으로 소비자에게 위임했습니다.
-
-이러한 설계 덕분에 react-hook-form 같은 폼 매니저를 사용할 때 완벽한 호환성을 가집니다. 라이브러리가 제어하는 onChange, onBlur, ref 등의 속성들을 컴포넌트 내부에서 간섭하지 않고 ...rest 매개변수를 통해 네이티브 <input> 요소에 100% 위임할 수 있기 때문에, 상태 충돌 없이 안전하게 폼을 확장할 수 있습니다."
-
-Q. onChange 이벤트에서 네이티브 객체(e) 전체가 아닌 value(string)만 넘겨주도록 추상화한 이유는 무엇이며, 플랫폼 포팅 시 어떤 이점이 있나요?
-
-A. "크게 두 가지 목적, **'개발자 경험(DX) 향상'**과 **'플랫폼 이식성(Portability) 확보'**를 위해서입니다.
-
-첫째, 소비자가 매번 e.target.value를 추출해야 하는 반복적인 보일러플레이트(비효율적 코드)를 제거하여, 항상 순수한 string 값만 예측 가능하게 받을 수 있도록 편의성을 높였습니다.
-
-둘째, 가장 중요한 이식성 때문입니다. 웹 환경의 e.target.value와 React Native의 e.nativeEvent.text는 이벤트 객체 구조가 완전히 다릅니다. 만약 소비자가 웹 DOM 구조에 직접 의존하게 코드를 짜면 환경이 바뀔 때 코드가 전부 깨집니다.
-따라서 Input 컴포넌트를 **'환경 차이를 내부에서 흡수하는 추상화 계층(Abstraction Layer)'**으로 활용하여, 밖으로는 오직 string만 노출되도록 설계했습니다. 이를 통해 소비자는 플랫폼이 모바일로 바뀌어도 코드를 단 한 줄도 수정할 필요가 없습니다."
-
-Q3. 컴포넌트 최상단을 div 대신 Fragment(<>)로 감싼 이유와, htmlFor 연결이 일반 사용자에게 주는 UX적 이점은 무엇인가요?
-
-A. "첫째, Headless 디자인 시스템의 핵심 원칙인 **'레이아웃 제어권의 완전한 위임'**을 위해서입니다. 만약 내부에서 div로 묶어버리면, 소비자가 flex나 grid 같은 자체 레이아웃을 구성할 때 예측 불가능한 부작용이 생기고, 이를 덮어쓰기 위한 불필요한 스타일 오버라이드(Override)가 강제됩니다. Fragment는 불필요한 DOM 노드를 생성하지 않아 소비자의 자율성을 100% 보장합니다.
-
-둘째, htmlFor와 id의 연결은 일반 사용자의 클릭 타깃(Clickable Area)을 확장해 줍니다. 체크박스처럼 입력 요소가 작을 때 레이블 텍스트 전체를 눌러도 포커스가 잡히게 만들어, 모바일 환경에서의 터치 실수를 방지하고 사용자가 무의식적으로 기대하는 '당연한 클릭의 편리함'을 제공합니다."
-
-Q4. InputProps 타입을 정의할 때 교집합(&)을 쓰지 않고, 굳이 Omit을 사용해 네이티브 onChange를 제거한 이유는 무엇인가요?
-
-A. "타입스크립트에서 발생할 수 있는 '불가능한 타입 교집합(Intersection)' 에러를 원천 차단하기 위함입니다.
-만약 Omit 없이 & 기호로만 타입을 합치면, TypeScript는 같은 키인 onChange에 대해 네이티브의 (e: ChangeEvent) => void와 제가 만든 커스텀 (value: string) => void를 동시에 만족하는 함수를 요구하게 됩니다. 이는 현실적으로 작성할 수 없는 타입이므로 소비자가 어떻게 코드를 짜든 무조건 타입 에러가 발생합니다. 따라서 Omit으로 원본 onChange 시그니처를 깔끔하게 도려내고 제 커스텀 타입 하나로 고정하여, 소비자의 불편함을 없애고 타입 안정성을 확보했습니다."
+**Q4. InputProps 타입을 정의할 때 교집합(&)을 쓰지 않고 Omit을 사용해 네이티브 onChange를 제거한 이유는 무엇인가요?**
+A. '불가능한 타입 교집합(Intersection)' 에러를 원천 차단하기 위함입니다. Omit 없이 타입을 합치면 TypeScript는 원본 `(e: ChangeEvent)`와 제가 만든 커스텀 `(value: string)`을 동시에 만족하는 함수를 요구하여 무조건 타입 에러를 뱉습니다. 따라서 원본 시그니처를 Omit으로 깔끔하게 도려내어 소비자의 타입 안정성을 확보했습니다.
