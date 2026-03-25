@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, ReactNode, useRef, useEffect } from 'react';
+import React, { createContext, useContext, useState, useMemo, ReactNode, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 // 1. Select 상태 타입 정의
 type SelectContextType = {
@@ -60,17 +60,27 @@ export function SelectRoot({ children, value: controlledValue, onChange, default
     setIsOpen(false); // 값 선택했으니 깔끔하게 모달 닫기
   };
 
+  // TODO: Context 분리 예정
+  // 현재는 State(isOpen, value)와 Dispatch(open, close, toggle, onChange) 함수가
+  // 하나의 Context에 묶여 있어, isOpen이 바뀔 때마다 toggle만 쓰는 SelectTrigger 등
+  // 불필요한 컴포넌트도 전부 리렌더링된다.
+  // 개선 방향: SelectStateContext / SelectDispatchContext 2개로 분리하면
+  // 각 컴포넌트가 필요한 Context만 구독해 불필요한 리렌더링을 차단할 수 있다.
+
+  // useMemo: isOpen 또는 currentValue가 바뀔 때만 새 객체를 생성한다.
+  // value에 인라인 객체를 그대로 넣으면 SelectRoot가 리렌더링될 때마다 새 객체가 만들어져
+  // 모든 하위 컴포넌트가 불필요하게 리렌더링되는 문제를 방어한다.
+  const contextValue = useMemo(() => ({
+    isOpen,
+    open: () => setIsOpen(true),
+    close: () => setIsOpen(false),
+    toggle: () => setIsOpen((prev) => !prev),
+    value: currentValue,
+    onChange: handleValueChange, // 자식들에게 무전기(onChange)를 쥐어준다.
+  }), [isOpen, currentValue]); // eslint-disable-line react-hooks/exhaustive-deps
+
   return (
-    <SelectContext.Provider
-      value={{
-        isOpen,
-        open: () => setIsOpen(true),
-        close: () => setIsOpen(false),
-        toggle: () => setIsOpen((prev) => !prev),
-        value: currentValue,
-        onChange: handleValueChange, // 자식들에게 무전기(onChange)를 쥐어준다.
-      }}
-    >
+    <SelectContext.Provider value={contextValue}>
       {children}
     </SelectContext.Provider>
   );
