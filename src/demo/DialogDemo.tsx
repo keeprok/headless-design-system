@@ -1,5 +1,5 @@
 import {
-  Dialog,
+  DialogRoot,
   DialogClose,
   DialogContent,
   DialogDescription,
@@ -13,7 +13,7 @@ export function DialogDemo() {
   return (
     <div>
       {/* Uncontrolled: defaultOpen 없이 사용하면 닫힌 상태로 시작 */}
-      <Dialog>
+      <DialogRoot>
         <DialogTrigger>모달 열기</DialogTrigger>
 
         <DialogPortal>
@@ -29,7 +29,7 @@ export function DialogDemo() {
             <DialogClose>닫기</DialogClose>
           </DialogContent>
         </DialogPortal>
-      </Dialog>
+      </DialogRoot>
     </div>
   );
 }

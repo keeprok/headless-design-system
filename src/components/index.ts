@@ -5,7 +5,7 @@ export { Input } from "./input";
 export type { InputProps } from "./input";
 
 export {
-  Dialog,
+  DialogRoot,
   DialogTrigger,
   DialogPortal,
   DialogOverlay,
@@ -13,14 +13,5 @@ export {
   DialogTitle,
   DialogDescription,
   DialogClose,
-} from "./dialog";
-export type {
-  DialogProps,
-  DialogTriggerProps,
-  DialogPortalProps,
-  DialogOverlayProps,
-  DialogContentProps,
-  DialogTitleProps,
-  DialogDescriptionProps,
-  DialogCloseProps,
+  useDialogContext,
 } from "./dialog";

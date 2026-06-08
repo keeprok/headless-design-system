@@ -1,0 +1,118 @@
+name: Design System CI/CD
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+# ──────────────────────────────────────────────────────────────
+# Job 1: CI — PR·push 모두에서 타입 체크 + 빌드 검증
+# ──────────────────────────────────────────────────────────────
+jobs:
+  ci:
+    name: 타입 체크 & 빌드 검증
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 저장소 체크아웃
+        uses: actions/checkout@v4
+
+      - name: Node.js 설정
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: 의존성 패키지 설치
+        run: npm ci
+
+      # 접근성(aria-*, role, 키보드 이벤트), 훅 의존성 배열, 타입 규칙 검사
+      - name: 린트
+        run: npm run lint
+
+      # tsconfig.json의 strict + noEmit 설정으로 타입 오류 전체 검사
+      - name: 타입 체크
+        run: npm run type-check
+
+      # 실제 번들 결과물(dist/)이 문제 없이 생성되는지 검증
+      - name: 프로젝트 빌드
+        run: npm run build
+
+# ──────────────────────────────────────────────────────────────
+# Job 2: Deploy — main/master push 시 GitHub Pages에 자동 배포
+#
+# 사전 설정 (최초 1회):
+#   GitHub 저장소 → Settings → Pages → Source를 
+#   "GitHub Actions"으로 변경하면 바로 동작합니다.
+#
+# 배포 URL: https://<username>.github.io/<repo-name>/
+# ──────────────────────────────────────────────────────────────
+  deploy:
+    name: GitHub Pages 배포
+    needs: ci                          # CI가 통과해야만 배포 시작
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'    # PR에서는 배포 생략
+
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+
+    steps:
+      - name: 저장소 체크아웃
+        uses: actions/checkout@v4
+
+      - name: Node.js 설정
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: 의존성 패키지 설치
+        run: npm ci
+
+      # GitHub Pages는 /repo-name/ 경로 아래에 배포되므로 base 경로를 주입
+      # vite.config.ts를 수정하지 않아도 CLI 인자로 덮어쓸 수 있음
+      - name: 프로젝트 빌드 (Pages 경로 적용)
+        run: npm run build -- --base=/${{ github.event.repository.name }}/
+
+      - name: GitHub Pages 설정
+        uses: actions/configure-pages@v4
+
+      - name: 빌드 결과물 업로드
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: './dist'
+
+      - name: GitHub Pages 배포
+        id: deployment
+        uses: actions/deploy-pages@v4
+
+# ──────────────────────────────────────────────────────────────
+# 다른 배포 방식을 원한다면:
+#
+# [Vercel]
+#   vercel.com에서 저장소를 import하면 자동 배포 설정 완료.
+#   별도 yml 없이 Vite 프레임워크를 자동 감지해 배포해 줌.
+#
+# [npm publish]
+#   1. package.json의 "private": true를 제거
+#   2. "main", "exports", "files" 필드 추가
+#   3. 아래 job 추가:
+#
+#   publish:
+#     needs: ci
+#     runs-on: ubuntu-latest
+#     if: github.event_name == 'push'
+#     steps:
+#       - uses: actions/checkout@v4
+#       - uses: actions/setup-node@v4
+#         with:
+#           node-version: '20'
+#           registry-url: 'https://registry.npmjs.org'
+#       - run: npm ci
+#       - run: npm publish
+#         env:
+#           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+# ──────────────────────────────────────────────────────────────
