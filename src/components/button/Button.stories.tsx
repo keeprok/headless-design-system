@@ -53,12 +53,12 @@ export const AsChild: Story = {
   ),
 };
 
-// CssCheck — index.css의 :root { color: #111 }이 로드됐는지 검증
-// #111 = rgb(17, 17, 17). 이 값이 맞으면 전역 CSS가 정상 적용된 것.
+// CssCheck — index.css의 body { margin: 0 }이 로드됐는지 검증
+// 브라우저 기본값은 8px, CSS 정상 로드 시 0px
 export const CssCheck: Story = {
   args: { children: 'CSS 확인' },
-  play: async ({ canvas }) => {
-    const btn = canvas.getByRole('button', { name: /css 확인/i });
-    await expect(getComputedStyle(btn).color).toBe('rgb(17, 17, 17)');
+  play: async ({ canvasElement }) => {
+    const body = canvasElement.ownerDocument.body;
+    await expect(getComputedStyle(body).margin).toBe('0px');
   },
 };

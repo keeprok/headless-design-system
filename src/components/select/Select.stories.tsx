@@ -49,7 +49,8 @@ function PetSelect() {
       <SelectTrigger style={triggerStyle} />
       <SelectPortal>
         <SelectOverlay style={overlayStyle} />
-        <SelectContent style={contentStyle}>
+        {/* aria-label: WAI-ARIA listbox는 반드시 accessible name이 있어야 함 */}
+        <SelectContent aria-label="반려동물 선택" style={contentStyle}>
           <SelectOption value="강아지" style={optionStyle}>강아지</SelectOption>
           <SelectOption value="고양이" style={optionStyle}>고양이</SelectOption>
           <SelectOption value="거북이" style={optionStyle}>거북이</SelectOption>
@@ -70,7 +71,7 @@ function FruitSelect() {
         <SelectTrigger style={{ ...triggerStyle, border: '2px solid red' }} />
         <SelectPortal>
           <SelectOverlay style={overlayStyle} />
-          <SelectContent style={contentStyle}>
+          <SelectContent aria-label="과일 선택" style={contentStyle}>
             <SelectOption value="사과" style={optionStyle}>사과</SelectOption>
             <SelectOption value="바나나" style={optionStyle}>바나나</SelectOption>
             <SelectOption value="포도" style={optionStyle}>포도</SelectOption>
