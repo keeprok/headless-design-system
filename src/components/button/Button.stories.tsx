@@ -53,12 +53,13 @@ export const AsChild: Story = {
   ),
 };
 
-// CssCheck — index.css의 body { margin: 0 }이 로드됐는지 검증
-// 브라우저 기본값은 8px, CSS 정상 로드 시 0px
+// CssCheck — index.css의 :root { background-color: #fff }이 로드됐는지 검증
+// 브라우저 기본값 transparent(rgba(0,0,0,0)) vs CSS 적용 시 rgb(255,255,255).
+// color(#111)보다 기본값과 차이가 명확해 CI 헤드리스 환경에서도 안정적.
 export const CssCheck: Story = {
   args: { children: 'CSS 확인' },
   play: async ({ canvasElement }) => {
-    const body = canvasElement.ownerDocument.body;
-    await expect(getComputedStyle(body).margin).toBe('0px');
+    const root = canvasElement.ownerDocument.documentElement;
+    await expect(getComputedStyle(root).backgroundColor).toBe('rgb(255, 255, 255)');
   },
 };
