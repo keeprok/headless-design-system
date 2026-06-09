@@ -25,7 +25,7 @@ jobs:
           cache: 'npm'
 
       - name: 의존성 패키지 설치
-        run: npm ci
+        run: npm install
 
       # 접근성(aria-*, role, 키보드 이벤트), 훅 의존성 배열, 타입 규칙 검사
       - name: 린트
@@ -78,7 +78,7 @@ jobs:
           cache: 'npm'
 
       - name: 의존성 패키지 설치
-        run: npm ci
+        run: npm install
 
       # GitHub Pages는 /repo-name/ 경로 아래에 배포되므로 base 경로를 주입
       # vite.config.ts를 수정하지 않아도 CLI 인자로 덮어쓸 수 있음
